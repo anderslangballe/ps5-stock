@@ -3,6 +3,8 @@ import urllib.request
 import time
 import json
 import os
+import requests
+from loguru import logger
 from telegram.ext import Updater
 
 updater = Updater(token=os.environ.get('TELEGRAM_TOKEN'), use_context=True)
@@ -11,10 +13,6 @@ def send_message(message):
     updater.bot.send_message(os.environ.get('TELEGRAM_CHAT_ID'), message)
 
 send_message('PS5 Scraper Test Message')
-
-headers = {
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36'}
-
 
 def update(product, stock, time, data):
     with open('status.json', 'w') as outfile:
@@ -30,14 +28,18 @@ def open_data():
 
 
 def filter_html(url, find, identifier):
-    req = urllib.request.Request(url, headers=headers)
-    source = urllib.request.urlopen(req).read()
-    soup = bs.BeautifulSoup(source, 'html.parser')
+    soup = bs.BeautifulSoup(requests.get(url).text, 'html.parser')
 
     return soup.find(find, class_=identifier)
 
 
+start_time = time.time()
+iteration = 0
+
 while True:
+    iteration += 1
+    logger.info(f'Iteration {iteration}, running for {time.time() - start_time} seconds')
+    
     in_stock = []
     data = open_data()
     for product in data:
@@ -47,19 +49,22 @@ while True:
         store = data[product]['store']
         find = data[product]['find']
 
-        filtered = filter_html(url, find, identifier)
+
+        filtered = None
+        try:
+            filtered = filter_html(url, find, identifier)
+        except Exception as e:
+            logger.error(e)
+
+            continue
 
         if store == "Elgiganten" or store == "Proshop" or store == "Happii" or store == "Merlin":
             if filtered is None:
                 print("Item available", name, store)
                 in_stock.append({'store': store, 'name': name, 'url': url})
-            else:
-                print("Item unavailable", name, store)
 
         elif store == "Bilka" or store == "Coolshop" or store == "Power" or store =="Foetex" or store == "BR" or store == "Expert":
-            if filtered is None:
-                print('Item unavailable', name, store)
-            else:
+            if filtered:
                 print('Item available', name, store)
                 in_stock.append({'store': store, 'name': name, 'url': url})
 
