@@ -10,7 +10,9 @@ from telegram.ext import Updater
 updater = Updater(token=os.environ.get('TELEGRAM_TOKEN'), use_context=True)
 
 def send_message(message):
-    updater.bot.send_message(os.environ.get('TELEGRAM_CHAT_ID'), message)
+    chat_ids = os.environ.get('TELEGRAM_CHAT_IDS', '').split()
+    for chat_id in chat_ids:
+        updater.bot.send_message(chat_id, message)
 
 send_message('PS5 Scraper Test Message')
 
